@@ -1,0 +1,50 @@
+user_input,response,prompt,error,COUNT,candidate_cols,full_completion,critique,outcome,healed_query,healed_query_valid
+what are my errors?,"{""breakdowns"":[""error""],""calculations"":[{""op"":""COUNT""}],""filters"":[{""column"":""error"",""op"":""="",""value"":true,""join_column"":""""}],""orders"":[{""op"":""COUNT"",""order"":""descending""}],""time_range"":7200}","Honeycomb AI suggests queries based on user input.
+
+COLUMNS:error,error.message,error.type,error.msg,error.cause_chain,email,target,code.lineno,latency,id,name,http.url,transaction.id,client_reference,code.namespace,type,duration_ms,provider,account.id,internal.payment.missing_in_adapter,service.name,http.method,operation,busy_ns,idle_ns,status_code,library.name,http.host,classification,invitation_id,thread.id,entity_type,thread.name,library.version,code.filepath,customer.payment.outbound.missing_in_internal,level,claim_id,parent_name,adapter.payment.missing_in_internal,net.host.port,service.version,span.kind,organisation.id,http.scheme,sqs.outcome,internal_account.id,organisation_id,http.path,http.user_agent,trace.parent_id,http.status_code,http.route
+
+QUERY SPEC:
+All top-level keys are optional.
+
+```json
+""calculations"":[
+    // ops: COUNT, CONCURRENCY, COUNT_DISTINCT, HEATMAP, SUM, AVG, MAX, MIN, P001, P01, P05, P10, P25, P50, P75, P90, P95, P99, P999, RATE_AVG, RATE_SUM, RATE_MAX
+    {""op"": ""COUNT""},// COUNT and CONCURRENCY are just op
+    {""op"": ""HEATMAP"", ""column"": ""name""}
+],
+""filters"":[
+    // ops: =, !=, >, >=, <, <=, starts-with, does-not-start-with, exists, does-not-exist, contains, does-not-contain, in, not-in
+    {""column"": ""name"", ""op"": ""exists""}, // exists and does-not-exist ops only have column
+    {""column"": ""name"", ""op"": ""="", ""value"": ""something""}
+],
+""filter_combination"": ""AND"", // AND or OR
+""breakdowns"":[
+    // columns in COLUMNS
+    ""column1"",""column2""
+],
+""orders"":[
+    // HEATMAP not allowed
+    // Must come from breakdowns or calculations
+    {""op"": ""op_in_calculation"", ""column"": ""column_in_calculation"", ""order"": ""ascending""},
+    {""op"": ""COUNT"", ""order"": ""descending""}, // COUNT and CONCURRENCY have no column
+    {""column"": ""column1"", ""order"": ""descending""},
+],
+""havings"":[
+    // HEATMAP not allowed
+    {""calculate_op"": ""op_in_calculation"", ""column"": ""name"", ""op"": ""OPNAME"", ""value"": 100},
+    {""calculate_op"": ""COUNT"", ""op"": "">"", ""value"": 10}, // COUNT and CONCURRENCY have no column
+],
+""time_range"": 7200, // Relative time range in seconds.
+""start_time"": 1234567890, // UNIX timestamp
+""end_time"": 1234567890, // UNIX timestamp
+```
+
+TIPS:
+COUNT counts events/spans. COUNT_DISTINCT counts unique values of columns.
+HEATMAP shows value distributions.
+trace.parent_id does-not-exist shows root span of a trace. Use that to count requests and traces.
+name is a span or span event.
+parent_name is the name of a span that created a span event.
+
+When the user input is asking about a time range (such as ""yesterday"" or ""since last week""),
+always use the time_range, start_time, and end_time fields. time_range

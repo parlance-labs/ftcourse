@@ -1,0 +1,115 @@
+Honeycomb AI suggests queries based on user input.
+
+COLUMNS:app.cron-name,k8s.pod.name,sli_medication_schedules_stop,sli_search_medication,sli_medication_schedule_editing,sli_save_medication_schedule,k8s.namespace.name,k8s.pod.uid,k8s.pod.start_time,k8s.node.name,k8s.pod.ip,k8s.deployment.name,app.medication_listener.skip_reason,app.cached_calendars_only,app.new_caregiver_not_checked_in_event_count,sentry-release,sli_caregivers,name,app.care_recipients_to_make_active.count,sampling.priority,app.care_recipients_to_make_inactive.count,process.pid,app.care_recipient_id,span.kind,app.calendar_visits_count,sampling.priority_reason,sli_task_scheduling,messaging.system,sentry-environment,sli_risks_mitigations,service.name,app.authz.permission,app.start,net.host.name,net.host.port,net.transport,exception.stacktrace,app.authz.consistency.zedtoken,net.host.ip,app.end,http.route,app.mfe.name,rpc.system,error,app.nmor.resident_count,app.authz.client.name,app.includeCancelled,rpc.service,process.executable.name,app.authz.attempts,exception.message,duration_ms,http.status_code,parent_name,trace.parent_id,db.statement
+
+QUERY SPEC:
+All top-level keys are optional.
+
+```json
+"calculations":[
+    // ops: COUNT, CONCURRENCY, COUNT_DISTINCT, HEATMAP, SUM, AVG, MAX, MIN, P001, P01, P05, P10, P25, P50, P75, P90, P95, P99, P999, RATE_AVG, RATE_SUM, RATE_MAX
+    {"op": "COUNT"},// COUNT and CONCURRENCY are just op
+    {"op": "HEATMAP", "column": "name"}
+],
+"filters":[
+    // ops: =, !=, >, >=, <, <=, starts-with, does-not-start-with, exists, does-not-exist, contains, does-not-contain, in, not-in
+    {"column": "name", "op": "exists"}, // exists and does-not-exist ops only have column
+    {"column": "name", "op": "=", "value": "something"}
+],
+"filter_combination": "AND", // AND or OR
+"breakdowns":[
+    // columns in COLUMNS
+    "column1","column2"
+],
+"orders":[
+    // HEATMAP not allowed
+    // Must come from breakdowns or calculations
+    {"op": "op_in_calculation", "column": "column_in_calculation", "order": "ascending"},
+    {"op": "COUNT", "order": "descending"}, // COUNT and CONCURRENCY have no column
+    {"column": "column1", "order": "descending"},
+],
+"havings":[
+    // HEATMAP not allowed
+    {"calculate_op": "op_in_calculation", "column": "name", "op": "OPNAME", "value": 100},
+    {"calculate_op": "COUNT", "op": ">", "value": 10}, // COUNT and CONCURRENCY have no column
+],
+"time_range": 7200, // Relative time range in seconds.
+"start_time": 1234567890, // UNIX timestamp
+"end_time": 1234567890, // UNIX timestamp
+```
+
+TIPS:
+COUNT counts events/spans. COUNT_DISTINCT counts unique values of columns.
+HEATMAP shows value distributions.
+trace.parent_id does-not-exist shows root span of a trace. Use that to count requests and traces.
+name is a span or span event.
+parent_name is the name of a span that created a span event.
+
+When the user input is asking about a time range (such as "yesterday" or "since last week"),
+always use the time_range, start_time, and end_time fields. time_range
+is relative and can be combined with either start_time or end_time but not both.
+
+Modify existing query or create a new query based on NLQ. Only include the query in your response.
+
+NLQ: Exception count by exception and caller
+EXISTING QUERY:
+{"breakdowns":["exception.message","parent_name"],"calculations":[{"op":"COUNT"}],"filters":[{"column":"exception.message","op":"exists","join_column":""},{"column":"parent_name","op":"exists","join_column":""}],"orders":[{"op":"COUNT","order":"descending"}],"time_range":7200}
+
+NLQ: Error count
+EXISTING QUERY:
+{"breakdowns":["error"],"calculations":[{"op":"COUNT"}],"filters":[{"column":"error","op":"=","value":true,"join_column":""}],"orders":[{"op":"COUNT","order":"descending"}],"time_range":7200}
+
+NLQ: Error rate
+EXISTING QUERY:
+{"breakdowns":["error"],"calculations":[{"op":"COUNT"}],"orders":[{"op":"COUNT","order":"descending"}],"time_range":7200}
+
+NLQ: Slow requests
+EXISTING QUERY:
+{"breakdowns":["http.route"],"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"column":"duration_ms","op":"MAX"}],"filters":[{"column":"trace.parent_id","op":"does-not-exist","join_column":""}],"orders":[{"column":"duration_ms","op":"MAX","order":"descending"}],"time_range":7200}
+
+NLQ: Latency distribution by status code
+EXISTING QUERY:
+{"breakdowns":["http.status_code"],"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"column":"duration_ms","op":"P95"}],"filters":[{"column":"http.status_code","op":"exists","join_column":""}],"time_range":7200}
+
+NLQ: Most time consuming db queries
+EXISTING QUERY:
+{"breakdowns":["name","db.statement"],"calculations":[{"column":"duration_ms","op":"SUM"}],"filters":[{"column":"db.statement","op":"exists","join_column":""}],"orders":[{"column":"duration_ms","op":"SUM","order":"descending"}],"time_range":7200}
+
+NLQ: Slow db queries
+EXISTING QUERY:
+{"breakdowns":["db.statement"],"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"column":"duration_ms","op":"P95"}],"filters":[{"column":"db.statement","op":"exists","join_column":""}],"orders":[{"column":"duration_ms","op":"P95","order":"descending"}],"time_range":604800}
+
+NLQ: by endpoint and operation
+EXISTING QUERY:{"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"column":"duration_ms","op":"MAX"}],"filters":[{"column":"trace.parent_id","op":"does-not-exist","join_column":""}],"orders":[{"column":"duration_ms","op":"MAX","order":"descending"}]}
+{"breakdowns":["http.route","name"],"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"column":"duration_ms","op":"MAX"}],"filters":[{"column":"trace.parent_id","op":"does-not-exist","join_column":""}],"orders":[{"column":"duration_ms","op":"MAX","order":"descending"}]}
+
+NLQ: by service
+EXISTING QUERY:{"calculations":[{"column":"duration_ms","op":"HEATMAP"}]}
+{"breakdowns":["service.name"],"calculations":[{"column":"duration_ms","op":"HEATMAP"}]}
+
+NLQ: where span is client_request
+EXISTING QUERY:{"calculations":[{"column":"duration_ms","op":"HEATMAP"}],"filters":[{"column":"trace.parent_id","op":"does-not-exist","join_column":""}],"time_range":604800}
+{"calculations":[{"column":"duration_ms","op":"HEATMAP"}],"filters":[{"column":"trace.parent_id","op":"does-not-exist","join_column":""},{"column":"name","op":"=","value":"client_request","join_column":""}],"time_range":604800}
+
+NLQ: add count
+EXISTING QUERY:{"breakdowns":["name"],"calculations":[{"column":"duration_ms","op":"HEATMAP"}],"filters":[{"column":"http.route","op":"exists","join_column":""}]}
+{"breakdowns":["name"],"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"op":"COUNT"}],"filters":[{"column":"http.route","op":"exists","join_column":""}]}
+
+NLQ: remove count
+EXISTING QUERY:{"breakdowns":["name"],"calculations":[{"column":"duration_ms","op":"HEATMAP"},{"op":"COUNT"}],"filters":[{"column":"service.name","op":"exists","join_column":""}]}
+{"breakdowns":["name"],"calculations":[{"column":"duration_ms","op":"HEATMAP"}],"filters":[{"column":"service.name","op":"exists","join_column":""}]}
+
+NLQ: add count
+EXISTING QUERY:
+{"calculations":[{"op":"COUNT"}]}
+
+NLQ: slow requests
+EXISTING QUERY:{"breakdowns":["name"],"filters":[{"column":"error","op":"exists","join_column":""}]}
+{"breakdowns":["http.route"],"calculations":[{"column":"duration_ms","op":"HEATMAP"}]}
+
+
+NLQ:all pods with name cron-no-medication
+EXISTING QUERY:{"calculations":[{"op":"COUNT"}],"filters":[{"column":"k8s.pod.name","op":"starts-with","value":"cron-no-medication-observation-received-cron","join_column":""}],"filter_combination":"AND","limit":100,"time_range":604800,"granularity":0}
+
+NLQ:{{question}}
+EXISTING QUERY
