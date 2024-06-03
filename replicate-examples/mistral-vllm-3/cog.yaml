@@ -1,0 +1,27 @@
+# Configuration for Cog ⚙️
+# Reference: https://github.com/replicate/cog/blob/main/docs/yaml.md
+
+build:
+  # set to true if your model requires a GPU
+  gpu: true
+  cuda: "12.1"
+
+  # python version in the form '3.8' or '3.8.12'
+  python_version: "3.11"
+
+  # a list of packages in the format <package-name>==<version>
+  python_packages:
+    - "hf_transfer==0.1.4"
+    - "aiohttp[speedups]"
+    - "torch==2.1.2"
+    - vllm==0.3.3
+
+  # commands run after the environment is setup
+  run:
+    # Replicate specific code to install vLLM properly
+    # - --mount=type=cache,target=/root/.cache/pip TORCH_CUDA_ARCH_LIST="8.0;8.6" CUDA_HOME=/usr/local/cuda pip install --ignore-installed vllm==0.4.2
+    # - sed -i "s/from vllm.model_executor.layers.quantization.schema import QuantParamSchema/# from vllm.model_executor.layers.quantization.schema import QuantParamSchema/" /root/.pyenv/versions/3.11.9/lib/python3.11/site-packages/vllm/model_executor/model_loader/weight_utils.py
+    - bash -c 'ln -s /usr/local/lib/python3.11/site-packages/torch/lib/lib{nv,cu}* /usr/lib'
+    - pip install scipy==1.11.4 sentencepiece==0.1.99 protobuf==4.23.4
+    
+predict: "predict.py:Predictor"
